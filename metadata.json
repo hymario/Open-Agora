@@ -1,0 +1,6 @@
+{
+  "name": "Agora",
+  "description": "Social media and forum for social coherence and project funding. Ideas can be discussed in the forum section and uploaded in the voting section.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "Idea": {
+      "title": "Idea",
+      "description": "Represents a civic idea or emergency proposal in the swipe queue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "creator": { "type": "string" },
+        "cost": { "type": "number" },
+        "image": { "type": "string" },
+        "category": { "type": "string", "enum": ["main", "emergency", "political", "forum"] },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "informed": { "type": "number" },
+            "effective": { "type": "number" }
+          },
+          "required": ["informed", "effective"]
+        },
+        "votes": { "type": "number" },
+        "startingInvestedAmount": { "type": "number" },
+        "investedAmount": { "type": "number" },
+        "parentId": { "type": "string" },
+        "parentTitle": { "type": "string" },
+        "comments": { "type": "array" },
+        "upgrades": { "type": "array" },
+        "versions": { "type": "array" }
+      },
+      "required": ["id", "title", "description", "creator", "cost", "category", "votes"]
+    },
+    "ForumThread": {
+      "title": "ForumThread",
+      "description": "Represents a discussion thread in the forum section",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "creator": { "type": "string" },
+        "forumCategory": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "likes": { "type": "number" },
+        "dislikes": { "type": "number" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "informed": { "type": "number" },
+            "effective": { "type": "number" }
+          },
+          "required": ["informed", "effective"]
+        },
+        "comments": { "type": "array" },
+        "versions": { "type": "array" },
+        "elevatedToProposalId": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "creator", "likes", "dislikes"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification item generated for a specific user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["id", "user", "title", "message", "read"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A vote cast by a user on a specific idea",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ideaId": { "type": "string" },
+        "user": { "type": "string" },
+        "direction": { "type": "string", "enum": ["up", "down"] }
+      },
+      "required": ["id", "ideaId", "user", "direction"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "A quality rating given by a user to a specific idea",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ideaId": { "type": "string" },
+        "user": { "type": "string" },
+        "informed": { "type": "number" },
+        "effective": { "type": "number" }
+      },
+      "required": ["id", "ideaId", "user", "informed", "effective"]
+    },
+    "ForumVote": {
+      "title": "ForumVote",
+      "description": "A vote cast by a user on a specific forum thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "threadId": { "type": "string" },
+        "user": { "type": "string" },
+        "direction": { "type": "string", "enum": ["like", "dislike"] }
+      },
+      "required": ["id", "threadId", "user", "direction"]
+    },
+    "ForumRating": {
+      "title": "ForumRating",
+      "description": "A quality rating given by a user to a specific forum thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "threadId": { "type": "string" },
+        "user": { "type": "string" },
+        "informed": { "type": "number" },
+        "effective": { "type": "number" }
+      },
+      "required": ["id", "threadId", "user", "informed", "effective"]
+    },
+    "CommentReaction": {
+      "title": "CommentReaction",
+      "description": "A reaction or appraisal given by a user to a comment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "commentId": { "type": "string" },
+        "user": { "type": "string" },
+        "reaction": { "type": "string" }
+      },
+      "required": ["id", "commentId", "user", "reaction"]
+    }
+  },
+  "firestore": {
+    "/ideas/{ideaId}": {
+      "schema": "Idea",
+      "description": "Collection of all proposals and ideas in the main pool"
+    },
+    "/forumThreads/{threadId}": {
+      "schema": "ForumThread",
+      "description": "Collection of all forum threads in the deliberation section"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of notifications for users"
+    },
+    "/votes/{voteId}": {
+      "schema": "Vote",
+      "description": "Collection of all idea votes to track direction"
+    },
+    "/ratings/{ratingId}": {
+      "schema": "Rating",
+      "description": "Collection of all quality ratings on ideas"
+    },
+    "/forumVotes/{voteId}": {
+      "schema": "ForumVote",
+      "description": "Collection of all forum thread votes"
+    },
+    "/forumRatings/{ratingId}": {
+      "schema": "ForumRating",
+      "description": "Collection of all forum thread ratings"
+    },
+    "/commentReactions/{reactionId}": {
+      "schema": "CommentReaction",
+      "description": "Collection of all reactions cast on individual comments"
+    }
+  }
+}

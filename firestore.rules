@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Rule 1: Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Primitives & Reusable Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Validation Blueprints (Anti-Update-Gaps) ---
+
+    function isValidIdea(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 200
+        && data.description is string && data.description.size() >= 10 && data.description.size() <= 5000
+        && data.creator is string && data.creator.size() <= 100
+        && data.cost is number && data.cost >= 0
+        && data.category is string && (data.category == 'main' || data.category == 'emergency' || data.category == 'political' || data.category == 'forum')
+        && data.votes is number
+        && (!data.keys().hasAll(['investedAmount']) || data.investedAmount is number)
+        && (!data.keys().hasAll(['startingInvestedAmount']) || data.startingInvestedAmount is number);
+    }
+
+    function isValidForumThread(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 200
+        && data.description is string && data.description.size() >= 10 && data.description.size() <= 5000
+        && data.creator is string && data.creator.size() <= 100
+        && data.likes is number
+        && data.dislikes is number;
+    }
+
+    function isValidNotification(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.title is string && data.title.size() <= 200
+        && data.message is string && data.message.size() <= 1000
+        && data.read is bool;
+    }
+
+    function isValidVote(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.ideaId is string && data.ideaId.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.direction is string && (data.direction == 'up' || data.direction == 'down');
+    }
+
+    function isValidRating(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.ideaId is string && data.ideaId.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.informed is number && data.informed >= 1 && data.informed <= 5
+        && data.effective is number && data.effective >= 1 && data.effective <= 5;
+    }
+
+    function isValidForumVote(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.threadId is string && data.threadId.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.direction is string && (data.direction == 'like' || data.direction == 'dislike');
+    }
+
+    function isValidForumRating(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.threadId is string && data.threadId.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.informed is number && data.informed >= 1 && data.informed <= 5
+        && data.effective is number && data.effective >= 1 && data.effective <= 5;
+    }
+
+    function isValidCommentReaction(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.commentId is string && data.commentId.size() <= 128
+        && data.user is string && data.user.size() <= 100
+        && data.reaction is string && data.reaction.size() <= 50;
+    }
+
+    // --- Collection Routes & Access Control ---
+
+    match /ideas/{ideaId} {
+      allow read: if true; // Public ideas reading is safe and fast
+      allow create: if isVerifiedUser() && isValidId(ideaId) && isValidIdea(incoming());
+      allow update: if isVerifiedUser() && isValidId(ideaId) && isValidIdea(incoming()) && (
+        // Allow updates to votes, stats, comments, upgrades, versions, etc.
+        incoming().diff(existing()).affectedKeys().hasAny(['votes', 'stats', 'comments', 'upgrades', 'versions', 'title', 'description', 'image', 'investedAmount', 'cost'])
+      );
+      allow delete: if false; // Ideas are immortal in this democratic archive
+    }
+
+    match /forumThreads/{threadId} {
+      allow read: if true;
+      allow create: if isVerifiedUser() && isValidId(threadId) && isValidForumThread(incoming());
+      allow update: if isVerifiedUser() && isValidId(threadId) && isValidForumThread(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasAny(['likes', 'dislikes', 'stats', 'comments', 'versions', 'category', 'elevatedToProposalId', 'title', 'description'])
+      );
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.user == request.auth.uid || resource.data.user == request.auth.token.email);
+      allow create: if isVerifiedUser() && isValidId(notificationId) && isValidNotification(incoming());
+      allow update: if isVerifiedUser() && isValidId(notificationId) && isValidNotification(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+      );
+      allow delete: if isSignedIn();
+    }
+
+    match /votes/{voteId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(voteId) && isValidVote(incoming());
+      allow delete: if isSignedIn() && isValidId(voteId);
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(ratingId) && isValidRating(incoming());
+      allow delete: if isSignedIn() && isValidId(ratingId);
+    }
+
+    match /forumVotes/{voteId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(voteId) && isValidForumVote(incoming());
+      allow delete: if isSignedIn() && isValidId(voteId);
+    }
+
+    match /forumRatings/{ratingId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(ratingId) && isValidForumRating(incoming());
+      allow delete: if isSignedIn() && isValidId(ratingId);
+    }
+
+    match /commentReactions/{reactionId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(reactionId) && isValidCommentReaction(incoming());
+      allow delete: if isSignedIn() && isValidId(reactionId);
+    }
+  }
+}
